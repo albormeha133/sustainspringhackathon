@@ -2,6 +2,7 @@ from flask import Flask, jsonify, render_template, request
 import xgboost as xgb
 from sklearn.datasets import make_regression
 from sklearn.model_selection import train_test_split
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -17,8 +18,38 @@ def run_model():
     # Read the seed from the query string e.g. /run?seed=42, default to 42 if not provided
     seed = int(request.args.get("seed", 42))
 
-    #Makes our test dataset
-    X, y = make_regression(n_samples=200, n_features=5, noise=20, random_state=seed)
+    #Data preprocessing
+
+    Pesticides = pd.read_csv("datasets/pesticides.csv")
+    Yield = pd.read_csv("datasets/yield.csv")
+    
+    # Filter yield to match pesticides
+    y_filter1= Yield.merge(
+        Pesticides[["Area", "Year"]].drop_duplicates(),
+        on=["Area", "Year"],
+        how="inner"
+    )
+
+    y_maize = y_filter1[y_filter1["Item"] == "Maize"]
+
+    # x_maize = Pesticides.merge(
+    #     y_maize[["Area", "Year"]].drop_duplicates(),
+    #     on=["Area", "Year"],
+    #     how="inner"
+    # )
+
+    maize_data = Pesticides.merge(
+        y_maize,
+        on=["Area", "Year"],
+        how="inner",
+        suffixes=("_pest", "_yield")
+    )
+
+    X = maize_data["Value_pest"]
+    y = maize_data["Value_yield"]  
+    # X = maize_data
+    # y = maize_data
+
     #split into test and train
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=seed)
 
@@ -28,9 +59,10 @@ def run_model():
     preds = model.predict(X_test)
 
     # results /  actuals
+    y_test_values = y_test.to_numpy()
     results = [
-        {"index": i, "actual": round(float(y_test[i]), 2), "predicted": round(float(preds[i]), 2)}
-        for i in range(min(50, len(y_test)))
+        {"index": i, "actual": round(float(y_test_values[i]), 2), "predicted": round(float(preds[i]), 2)}
+        for i in range(min(50, len(y_test_values)))
     ]
     #feature importance results
     importances = [
@@ -39,6 +71,7 @@ def run_model():
     ]
     #return these results to script in index.html
     return jsonify({"results": results, "importances": importances})
+
 
 # Start the server if this file is run directly (python app.py)
 if __name__ == "__main__":

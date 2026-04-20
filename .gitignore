@@ -1,0 +1,18 @@
+# Python virtual environments
+
+webapp/venv/
+
+# Dataset files
+webapp/datasets/
+webapp/datasets/pesticides.csv
+webapp/datasets/yield.csv   
+webapp/datasets/rainfall.csv
+webapp/datasets/temp.csv
+
+# Bytecode
+__pycache__/
+*.py[cod]
+
+# Editor files
+.vscode/
+*.swp
